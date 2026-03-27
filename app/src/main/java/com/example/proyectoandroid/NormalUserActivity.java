@@ -4,7 +4,6 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -14,7 +13,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.gms.maps.CameraUpdateFactory;
+import com.bumptech.glide.Glide;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -23,6 +22,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -32,7 +32,7 @@ import java.util.Locale;
 
 /**
  * Actividad para el Usuario Normal.
- * Ahora muestra la FOTO REAL seleccionada por el creador en la tarjeta de detalles.
+ * Utiliza GLIDE para cargar las fotos desde la nube (Firebase Storage). ☁️📸✨🚀
  */
 public class NormalUserActivity extends AppCompatActivity implements OnMapReadyCallback {
 
@@ -40,10 +40,12 @@ public class NormalUserActivity extends AppCompatActivity implements OnMapReadyC
     private FirebaseFirestore db;
     private Geocoder geocoder;
     
+    // UI detail card
     private MaterialCardView cardInfo;
     private TextView tvNameDetail, tvInfoDetail, tvHorariosDetail, tvAddressDetail;
     private ImageView ivPhoto;
     private Button btnClose;
+    private FloatingActionButton fabRefresh;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,8 +62,14 @@ public class NormalUserActivity extends AppCompatActivity implements OnMapReadyC
         tvAddressDetail = findViewById(R.id.tvAddressDetail);
         ivPhoto = findViewById(R.id.ivRestaurantPhoto);
         btnClose = findViewById(R.id.btnCloseDetail);
+        fabRefresh = findViewById(R.id.fabRefresh);
 
         btnClose.setOnClickListener(v -> cardInfo.setVisibility(View.GONE));
+
+        fabRefresh.setOnClickListener(v -> {
+            Toast.makeText(this, "Actualizando con la nube... 🔄☁️", Toast.LENGTH_SHORT).show();
+            loadAllRestaurantsMarkers();
+        });
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.mapFragment);
@@ -92,32 +100,35 @@ public class NormalUserActivity extends AppCompatActivity implements OnMapReadyC
         tvHorariosDetail.setText("🕒 " + (r.getHorarios() != null ? r.getHorarios() : "Sin horario"));
         tvAddressDetail.setText("📍 " + r.getAddress());
         
-        // PINTAMOS LA FOTO ELEGIDA POR EL DUEÑO
+        // ¡LA MAGIA DE GLIDE! ✨📸🚀🏆
         if (r.getImageUrl() != null && !r.getImageUrl().isEmpty()) {
-            if (r.getImageUrl().startsWith("content://")) {
-                // Si es una foto de la galería del mismo dispositivo
-                ivPhoto.setImageURI(Uri.parse(r.getImageUrl()));
-            } else {
-                // Si es una URL de internet (por defecto o futura)
-                // ivPhoto.setImageResource(R.drawable.logo_restaurante); // Podrías poner un logo por defecto
-                ivPhoto.setImageResource(android.R.drawable.ic_menu_gallery);
-            }
+            Glide.with(this)
+                    .load(r.getImageUrl())
+                    .placeholder(android.R.drawable.ic_menu_gallery) // Mientras carga
+                    .error(android.R.drawable.ic_menu_report_image) // Si falla
+                    .centerCrop()
+                    .into(ivPhoto);
+        } else {
+            ivPhoto.setImageResource(android.R.drawable.ic_menu_gallery);
         }
 
         cardInfo.setVisibility(View.VISIBLE);
     }
 
     private void loadAllRestaurantsMarkers() {
-        db.collection("restaurants").addSnapshotListener((value, error) -> {
-            if (error != null) return;
-            if (value != null && mMap != null) {
-                mMap.clear(); 
-                for (QueryDocumentSnapshot doc : value) {
-                    Restaurant r = doc.toObject(Restaurant.class);
-                    if (r.getAddress() != null && !r.getAddress().isEmpty()) {
-                        addMarkerFromAddress(r);
+        db.collection("restaurants").get().addOnCompleteListener(task -> {
+            if (task.isSuccessful() && task.getResult() != null) {
+                if (mMap != null) {
+                    mMap.clear(); 
+                    for (QueryDocumentSnapshot doc : task.getResult()) {
+                        Restaurant r = doc.toObject(Restaurant.class);
+                        if (r.getAddress() != null && !r.getAddress().isEmpty()) {
+                            addMarkerFromAddress(r);
+                        }
                     }
                 }
+            } else {
+                Toast.makeText(this, "Error conectando con la nube", Toast.LENGTH_SHORT).show();
             }
         });
     }

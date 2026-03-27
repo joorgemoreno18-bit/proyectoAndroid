@@ -1,21 +1,14 @@
 package com.example.proyectoandroid;
 
 import android.app.AlertDialog;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -31,7 +24,8 @@ import java.util.List;
 
 /**
  * Actividad para el Creador.
- * Se ha mejorado el permiso de la imagen para que sea persistente (se vea siempre).
+ * SE HA ELIMINADO STORAGE PARA EVITAR COSTES. 💰❌
+ * Ahora el creador introduce una URL (enlace) de una foto de internet. 🍕🌐
  */
 public class CreatorActivity extends AppCompatActivity {
 
@@ -40,34 +34,6 @@ public class CreatorActivity extends AppCompatActivity {
     private String currentUid;
     private RestaurantAdapter adapter;
     private List<Restaurant> restaurantList;
-    
-    private Uri selectedImageUri; 
-    private ImageView dvImageView;
-
-    // Pedimos permiso persistente al elegir la foto
-    private final ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            result -> {
-                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                    selectedImageUri = result.getData().getData();
-                    
-                    // ESTO ES LO CLAVE: Pedimos permiso a Android para leer esta foto siempre
-                    if (selectedImageUri != null) {
-                        final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
-                        try {
-                            getContentResolver().takePersistableUriPermission(selectedImageUri, takeFlags);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    if (dvImageView != null) {
-                        dvImageView.setImageURI(selectedImageUri);
-                        dvImageView.setVisibility(View.VISIBLE);
-                    }
-                }
-            }
-    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,7 +72,6 @@ public class CreatorActivity extends AppCompatActivity {
     }
 
     private void showAddRestaurantDialog() {
-        selectedImageUri = null; 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Nuevo Restaurante 🍕");
 
@@ -115,30 +80,16 @@ public class CreatorActivity extends AppCompatActivity {
         container.setPadding(60, 40, 60, 40);
 
         final EditText etName = new EditText(this); etName.setHint("Nombre del local");
-        final EditText etInfo = new EditText(this); etInfo.setHint("Descripción corta");
+        final EditText etInfo = new EditText(this); etInfo.setHint("Descripción");
         final EditText etAddress = new EditText(this); etAddress.setHint("📍 Dirección");
         final EditText etHorarios = new EditText(this); etHorarios.setHint("🕒 Horarios");
-
-        Button btnPickImg = new Button(this);
-        btnPickImg.setText("Seleccionar Foto 📷");
-        btnPickImg.setOnClickListener(v -> {
-            // Usamos ACTION_OPEN_DOCUMENT para que el permiso persistente funcione mejor
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("image/*");
-            galleryLauncher.launch(intent);
-        });
-
-        dvImageView = new ImageView(this);
-        dvImageView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(500, 300));
-        dvImageView.setVisibility(View.GONE);
+        final EditText etImgUrl = new EditText(this); etImgUrl.setHint("🌐 URL de la foto (Google Imágenes)");
 
         container.addView(etName); 
         container.addView(etInfo); 
         container.addView(etAddress);
         container.addView(etHorarios);
-        container.addView(btnPickImg);
-        container.addView(dvImageView);
+        container.addView(etImgUrl);
         builder.setView(container);
 
         builder.setPositiveButton("Crear", (dialog, which) -> {
@@ -146,12 +97,17 @@ public class CreatorActivity extends AppCompatActivity {
             String info = etInfo.getText().toString();
             String address = etAddress.getText().toString();
             String horarios = etHorarios.getText().toString();
+            String imgUrl = etImgUrl.getText().toString(); // <--- LA URL PEGADA 🌐
 
             if (!name.isEmpty() && !address.isEmpty()) {
-                String imgPath = (selectedImageUri != null) ? selectedImageUri.toString() : "";
-                Restaurant newR = new Restaurant(name, info, address, horarios, imgPath, currentUid);
+                // Si está vacía, ponemos una foto de restaurante por defecto
+                if (imgUrl.isEmpty()) {
+                    imgUrl = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=500";
+                }
+                
+                Restaurant newR = new Restaurant(name, info, address, horarios, imgUrl, currentUid);
                 db.collection("restaurants").document(newR.getId()).set(newR)
-                        .addOnSuccessListener(unused -> Toast.makeText(this, "¡Restaurante guardado!", Toast.LENGTH_SHORT).show());
+                        .addOnSuccessListener(unused -> Toast.makeText(this, "¡Restaurante CREADO! 🚀", Toast.LENGTH_SHORT).show());
             }
         });
 

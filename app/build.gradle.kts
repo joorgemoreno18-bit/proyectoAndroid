@@ -5,7 +5,6 @@ plugins {
 
 android {
     namespace = "com.example.proyectoandroid"
-    // Volvemos a 34 ahora que el plugin 8.3.2 sabrá manejarlo bien
     compileSdk = 34
 
     defaultConfig {
@@ -47,6 +46,11 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage) // <--- LA NUBE PARA FOTOS
+
+    // Imagenes con Glide
+    implementation(libs.glide)
+    annotationProcessor(libs.glide.compiler)
 
     // Google Maps SDK
     implementation(libs.play.services.maps)
