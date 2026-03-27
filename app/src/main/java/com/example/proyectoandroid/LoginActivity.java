@@ -9,93 +9,77 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.proyectoandroid.databinding.ActivityLoginBinding;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 /**
- * Actividad Principal: Esta es la primera pantalla que verá el usuario.
- * Se encarga de iniciar sesión y redirigirlo a su rol correspondiente.
+ * Pantalla de inicio de sesion.
+ * Verifica las credenciales de usuario y redirecciona segun su rol asignado.
  */
 public class LoginActivity extends AppCompatActivity {
 
-    private ActivityLoginBinding binding; // ViewBinding para acceder fácilmente a los componentes
-    private FirebaseAuth mAuth; // Firebase Authentication: Maneja el login
-    private FirebaseFirestore db; // Firebase Firestore: Almacena los roles de los usuarios
+    private ActivityLoginBinding binding; // Objeto para el enlace de vistas (View Binding).
+    private FirebaseAuth mAuth; // Gestor de autenticacion de Firebase.
+    private FirebaseFirestore db; // Gestor de la base de datos Firestore.
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // Inicializamos Firebase Auth y Firestore
-        mAuth = FirebaseAuth.getInstance();
-        db = FirebaseFirestore.getInstance();
-
-        // Si el usuario ya está logueado, vamos directamente hacia su menú
-        if (mAuth.getCurrentUser() != null) {
-            fetchUserRoleAndStartActivity(mAuth.getUid());
-            // No inflamos el layout para evitar el parpadeo de la pantalla de login
-            return;
-        }
-
-        // Si no está logueado, mostramos el formulario de login
+        // Inicializacion del View Binding para acceder a los componentes de la interfaz.
         binding = ActivityLoginBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // Al pulsar en "Regístrate aquí", saltamos a la actividad de registro
-        binding.tvGoToRegister.setOnClickListener(v -> {
-            startActivity(new Intent(this, RegisterActivity.class));
+        mAuth = FirebaseAuth.getInstance(); // Inicializacion del servicio de autenticacion.
+        db = FirebaseFirestore.getInstance(); // Inicializacion del servicio de base de datos distribuidora.
+
+        // Listener para procesar el intento de inicio de sesion.
+        binding.btnLogin.setOnClickListener(v -> {
+            String email = binding.etEmail.getText().toString();
+            String password = binding.etPassword.getText().toString();
+
+            // Validacion basica de campos no vacios.
+            if (!email.isEmpty() && !password.isEmpty()) {
+                // Ejecucion del proceso de autenticacion en Firebase Auth.
+                mAuth.signInWithEmailAndPassword(email, password)
+                        .addOnCompleteListener(this, task -> {
+                            if (task.isSuccessful()) {
+                                // Redireccion al validador de roles tras el exito del login.
+                                FirebaseUser user = mAuth.getCurrentUser();
+                                checkUserRole(user.getUid());
+                            } else {
+                                // Notificacion de error en las credenciales proporcionadas.
+                                Toast.makeText(LoginActivity.this, "Error de autenticacion: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+            }
         });
 
-        // Evento al pulsar el botón principal "Entrar"
-        binding.btnLogin.setOnClickListener(v -> {
-            String email = binding.etEmail.getText().toString().trim();
-            String pwd = binding.etPassword.getText().toString().trim();
-
-            if (!email.isEmpty() && !pwd.isEmpty()) {
-                // Intentamos loguear al usuario con email y contraseña
-                mAuth.signInWithEmailAndPassword(email, pwd)
-                        .addOnSuccessListener(authResult -> {
-                            // Si el login es exitoso, comprobamos su rol en Firestore
-                            fetchUserRoleAndStartActivity(authResult.getUser().getUid());
-                        })
-                        .addOnFailureListener(e -> {
-                            Toast.makeText(this, "Error de acceso: " + e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                        });
-            } else {
-                Toast.makeText(this, "Falta completar datos", Toast.LENGTH_SHORT).show();
-            }
+        // Listener para abrir la actividad de registro de nuevos usuarios.
+        binding.tvRegisterLink.setOnClickListener(v -> {
+            startActivity(new Intent(this, RegisterActivity.class));
         });
     }
 
     /**
-     * Consulta en Firestore cuál es el rol del usuario actual (Creador o Normal)
-     * para enviarlo a la pantalla que le corresponde.
+     * Consulta el rol del usuario en la base de datos para determinar su flujo de actividad.
      */
-    private void fetchUserRoleAndStartActivity(String uid) {
-        // Buscamos el documento con el UID del usuario dentro de la colección "users"
-        db.collection("users").document(uid).get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        // Obtenemos el campo "role" que guardamos al registrar al usuario
-                        String role = documentSnapshot.getString("role");
-                        Log.d("LOGIN_ROLE", "Usuario identificado como: " + role);
+    private void checkUserRole(String uid) {
+        // Peticion asincrona al documento de usuario correspondiente en la coleccion "users".
+        db.collection("users").document(uid).get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                String role = documentSnapshot.getString("role");
+                Log.d("LOGIN_ROLE", "Rol de usuario identificado: " + role);
 
-                        // Redireccionamos a la actividad correcta
-                        Intent intent;
-                        if ("creator".equalsIgnoreCase(role)) {
-                            intent = new Intent(this, CreatorActivity.class);
-                        } else {
-                            intent = new Intent(this, NormalUserActivity.class);
-                        }
-                        // Impedimos que el usuario vuelva al Login con el botón de atrás
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        startActivity(intent);
-                        finish(); // Cerramos definitivamente el login
-                    } else {
-                        Toast.makeText(this, "No se encontraron datos del usuario", Toast.LENGTH_LONG).show();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Error verificando perfil: " + e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                });
+                // Bifurcacion de flujo segun el rol del usuario registrado.
+                if ("creator".equals(role)) {
+                    // Acceso a la interfaz de gestion del creador.
+                    startActivity(new Intent(LoginActivity.this, CreatorActivity.class));
+                } else {
+                    // Acceso a la interfaz de visualizacion del mapa para usuarios estandar.
+                    startActivity(new Intent(LoginActivity.this, NormalUserActivity.class));
+                }
+                finish(); // Finaliza la actividad actual para evitar que el usuario vuelva atras.
+            }
+        });
     }
 }

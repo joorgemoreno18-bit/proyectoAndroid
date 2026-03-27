@@ -14,91 +14,73 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Actividad donde los nuevos usuarios se registran.
- * Permite elegir si eres un creador o un usuario normal mediante un checkbox.
+ * Pantalla para el registro de nuevos usuarios.
+ * Almacena la informacion de usuario en Firebase Auth y define su rol en Firestore Database.
  */
 public class RegisterActivity extends AppCompatActivity {
 
-    private ActivityRegisterBinding binding; // Usamos ViewBinding para acceder a los elementos del layout fácilmente
-    private FirebaseAuth mAuth; // Instancia de Firebase para manejar la autenticación
-    private FirebaseFirestore db; // Instancia de Firestore para guardar los datos del usuario
+    private ActivityRegisterBinding binding; // Gestor de vistas vinculadas para la UI de registro.
+    private FirebaseAuth mAuth; // Gestor de autenticacion de Firebase.
+    private FirebaseFirestore db; // Gestor de almacenamiento en base de datos NoSQL distribuida.
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Inicializacion del View Binding para las vistas de la interfaz de registro.
         binding = ActivityRegisterBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // Inicializamos Firebase
-        mAuth = FirebaseAuth.getInstance();
-        db = FirebaseFirestore.getInstance();
+        mAuth = FirebaseAuth.getInstance(); // Inicializacion del servicio de autenticacion de red.
+        db = FirebaseFirestore.getInstance(); // Inicializacion del servicio de base de datos distribuidora.
 
-        // Si el usuario ya existe, lo mandamos al login
-        binding.tvGoToLogin.setOnClickListener(v -> {
-            finish(); // Cierra esta actividad y vuelve a la anterior (que es el Login)
-        });
-
-        // Evento al pulsar el botón de registro
+        // Listener para procesar el registro tras el clic en el boton btnRegister.
         binding.btnRegister.setOnClickListener(v -> {
-            String email = binding.etRegisterEmail.getText().toString().trim();
-            String pwd = binding.etRegisterPassword.getText().toString().trim();
-            String name = binding.etName.getText().toString().trim();
-            boolean isCreator = binding.cbIsCreator.isChecked();
+            String email = binding.etEmail.getText().toString();
+            String password = binding.etPassword.getText().toString();
+            
+            // Asignacion del rol basandose en el estado del componente switchRole.
+            String role = binding.switchRole.isChecked() ? "creator" : "normal"; 
 
-            if (!email.isEmpty() && !pwd.isEmpty() && !name.isEmpty()) {
-                // Paso 1: Intentamos registrar el usuario en Firebase Authentication
-                mAuth.createUserWithEmailAndPassword(email, pwd)
-                        .addOnSuccessListener(authResult -> {
-                            // Paso 2: Si tiene éxito, guardamos su rol en Firestore
-                            String uid = authResult.getUser().getUid();
-                            saveUserToFirestore(uid, name, isCreator);
-                        })
-                        .addOnFailureListener(e -> {
-                            Toast.makeText(this, "Error: " + e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+            // Validacion basica para asegurar campos obligatorios no nulos.
+            if (!email.isEmpty() && !password.isEmpty()) {
+                // Etapa 1: Registro en el servicio de autenticacion central de Firebase.
+                mAuth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener(this, task -> {
+                            if (task.isSuccessful()) {
+                                // Etapa 2: Si el registro en Auth es exitoso, persistimos el perfil en la base de datos.
+                                String uid = mAuth.getCurrentUser().getUid();
+                                saveUserToFirestore(uid, email, role);
+                            } else {
+                                // Notificacion de error producida durante el registro de credenciales.
+                                Toast.makeText(RegisterActivity.this, "Error en el registro del usuario: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            }
                         });
-            } else {
-                Toast.makeText(this, "Por favor, completa todos los campos", Toast.LENGTH_SHORT).show();
             }
         });
+
+        // Listener para regresar de forma manual a la actividad de inicio de sesion.
+        binding.tvLoginLink.setOnClickListener(v -> {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+        });
     }
 
     /**
-     * Guarda la información básica del usuario (con su rol) en Firestore.
+     * Persiste la informacion basica del perfil de usuario y su rol en la coleccion "users".
      */
-    private void saveUserToFirestore(String uid, String name, boolean isCreator) {
-        // Obtenemos el nombre del rol según el checkbox
-        String role = isCreator ? "creator" : "normal";
+    private void saveUserToFirestore(String uid, String email, String role) {
+        // Estructuracion de la informacion de usuario mediante un objeto Map de clave-valor.
+        Map<String, Object> user = new HashMap<>();
+        user.put("email", email);
+        user.put("role", role);
 
-        // Creamos un mapa con los datos del perfil
-        Map<String, Object> userProfile = new HashMap<>();
-        userProfile.put("name", name);
-        userProfile.put("role", role);
-        userProfile.put("uid", uid);
-
-        // Guardamos en la colección "users" usando el UID como nombre del documento
-        db.collection("users").document(uid).set(userProfile)
+        // Escritura asincrona del objeto usuario en el nodo documental correspondiente de Firestore.
+        db.collection("users").document(uid).set(user)
                 .addOnSuccessListener(unused -> {
-                    Toast.makeText(this, "Registro completado con éxito", Toast.LENGTH_SHORT).show();
-                    // Redirigir según el rol
-                    startCorrectActivity(role);
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Error guardando datos: " + e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                    // Notificacion de operacion de guardado finalizada correctamente.
+                    Toast.makeText(RegisterActivity.this, "Usuario registrado correctamente en el servidor", Toast.LENGTH_SHORT).show();
+                    startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
+                    finish();
                 });
-    }
-
-    /**
-     * Lanza la actividad que corresponde según el rol del usuario recién creado.
-     */
-    private void startCorrectActivity(String role) {
-        Intent intent;
-        if (role.equals("creator")) {
-            intent = new Intent(this, CreatorActivity.class);
-        } else {
-            intent = new Intent(this, NormalUserActivity.class);
-        }
-        // Limpiamos el stack de actividades para que no se pueda volver atrás al registro
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
     }
 }

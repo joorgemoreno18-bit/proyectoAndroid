@@ -32,20 +32,20 @@ import java.util.Locale;
 
 /**
  * Actividad para el Usuario Normal.
- * Utiliza GLIDE para cargar las fotos desde la nube (Firebase Storage). ☁️📸✨🚀
+ * Gestiona la visualizacion de marcadores en Google Maps y los detalles mediante Glide.
  */
 public class NormalUserActivity extends AppCompatActivity implements OnMapReadyCallback {
 
-    private GoogleMap mMap;
-    private FirebaseFirestore db;
-    private Geocoder geocoder;
+    private GoogleMap mMap; // Objeto para controlar el componente de Google Maps.
+    private FirebaseFirestore db; // Instancia de conexion con Firestore Database.
+    private Geocoder geocoder; // Herramienta para conversion de direcciones textuales a coordenadas.
     
-    // UI detail card
+    // UI detail card components.
     private MaterialCardView cardInfo;
     private TextView tvNameDetail, tvInfoDetail, tvHorariosDetail, tvAddressDetail;
     private ImageView ivPhoto;
     private Button btnClose;
-    private FloatingActionButton fabRefresh;
+    private FloatingActionButton fabRefresh; // Boton flotante para forzar el refresco de marcadores.
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,13 +64,16 @@ public class NormalUserActivity extends AppCompatActivity implements OnMapReadyC
         btnClose = findViewById(R.id.btnCloseDetail);
         fabRefresh = findViewById(R.id.fabRefresh);
 
+        // Listener para cerrar la card de detalles.
         btnClose.setOnClickListener(v -> cardInfo.setVisibility(View.GONE));
 
+        // Listener para refrescar manualmente los marcadores del mapa.
         fabRefresh.setOnClickListener(v -> {
-            Toast.makeText(this, "Actualizando con la nube... 🔄☁️", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Refrescando mapa...", Toast.LENGTH_SHORT).show();
             loadAllRestaurantsMarkers();
         });
 
+        // Inicializacion del mapa de forma asincrona.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.mapFragment);
         if (mapFragment != null) {
@@ -94,18 +97,21 @@ public class NormalUserActivity extends AppCompatActivity implements OnMapReadyC
         loadAllRestaurantsMarkers();
     }
 
+    /**
+     * Muestra la informacion detallada del restaurante seleccionado en la tarjeta inferior.
+     */
     private void showRestaurantDetails(Restaurant r) {
         tvNameDetail.setText(r.getName());
         tvInfoDetail.setText(r.getInfo());
-        tvHorariosDetail.setText("🕒 " + (r.getHorarios() != null ? r.getHorarios() : "Sin horario"));
-        tvAddressDetail.setText("📍 " + r.getAddress());
+        tvHorariosDetail.setText("Horario: " + (r.getHorarios() != null ? r.getHorarios() : "No especificado"));
+        tvAddressDetail.setText("Direccion: " + r.getAddress());
         
-        // ¡LA MAGIA DE GLIDE! ✨📸🚀🏆
+        // Uso de Glide para la carga de imagenes desde red con placeholders.
         if (r.getImageUrl() != null && !r.getImageUrl().isEmpty()) {
             Glide.with(this)
                     .load(r.getImageUrl())
-                    .placeholder(android.R.drawable.ic_menu_gallery) // Mientras carga
-                    .error(android.R.drawable.ic_menu_report_image) // Si falla
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_report_image)
                     .centerCrop()
                     .into(ivPhoto);
         } else {
@@ -115,6 +121,9 @@ public class NormalUserActivity extends AppCompatActivity implements OnMapReadyC
         cardInfo.setVisibility(View.VISIBLE);
     }
 
+    /**
+     * Recupera todos los restaurantes de la coleccion y coloca marcadores en el mapa.
+     */
     private void loadAllRestaurantsMarkers() {
         db.collection("restaurants").get().addOnCompleteListener(task -> {
             if (task.isSuccessful() && task.getResult() != null) {
@@ -128,11 +137,14 @@ public class NormalUserActivity extends AppCompatActivity implements OnMapReadyC
                     }
                 }
             } else {
-                Toast.makeText(this, "Error conectando con la nube", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Error conectando con el servidor", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
+    /**
+     * Utiliza el servicio Geocoder para posicionar el marcador en base a la direccion textual.
+     */
     private void addMarkerFromAddress(Restaurant r) {
         try {
             List<Address> addresses = geocoder.getFromLocationName(r.getAddress(), 1);

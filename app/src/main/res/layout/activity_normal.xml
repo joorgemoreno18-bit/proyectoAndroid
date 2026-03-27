@@ -77,6 +77,15 @@
                 android:padding="20dp">
 
                 <TextView
+                    android:id="@+id/tvTitleCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Lista de Restaurantes"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/black"
+                    android:layout_marginBottom="8dp"/>
+                <TextView
                     android:id="@+id/tvNameDetail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

@@ -3,23 +3,25 @@ package com.example.proyectoandroid;
 import java.util.UUID;
 
 /**
- * Modelo de datos para un Restaurante.
- * Firestore lo usará para guardar y leer documentos automáticamente.
+ * Modelo de datos para la entidad Restaurante.
+ * Representa la estructura de informacion almacenada en Firestore.
  */
 public class Restaurant {
-    private String id;
-    private String name;
-    private String info;
-    private String address;
-    private String horarios; // <--- NUEVO: Campo para el horario
-    private String imageUrl; // <--- NUEVO: Campo para la foto (URL)
-    private String creatorId;
+    private String id; // Identificador unico del restaurante.
+    private String name; // Nombre comercial del establecimiento.
+    private String info; // Descripcion informativa del local.
+    private String address; // Direccion postal completa.
+    private String horarios; // Horario de atencion al publico.
+    private String imageUrl; // URL de la imagen representativa del local.
+    private String creatorId; // Referencia al ID del usuario creador.
 
-    // Constructor vacío requerido por Firestore para la deserialización
-    public Restaurant() {}
+    // Constructor vacio requerido para la serializacion de Firebase Firestore.
+    public Restaurant() {
+    }
 
+    // Constructor para la creacion de nuevas instancias de restaurante.
     public Restaurant(String name, String info, String address, String horarios, String imageUrl, String creatorId) {
-        this.id = UUID.randomUUID().toString(); // Generamos un ID único si no existe
+        this.id = UUID.randomUUID().toString(); // Generacion de ID aleatorio.
         this.name = name;
         this.info = info;
         this.address = address;
@@ -28,7 +30,10 @@ public class Restaurant {
         this.creatorId = creatorId;
     }
 
-    // Getters y Setters necesarios para Firestore
+    /**
+     * Getters y Setters para el acceso a las propiedades de la clase.
+     */
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
