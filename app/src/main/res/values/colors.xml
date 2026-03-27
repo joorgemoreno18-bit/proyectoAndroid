@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Colores principales con estética moderna (Azul Profundo y Acento Dorado/Ámbar) -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Paleta Premium -->
+    <color name="primary">#1E293B</color> <!-- Slate 800: Elegante y serio -->
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="accent">#F59E0B</color> <!-- Amber 500: Llama la atención sin ser agresivo -->
+    <color name="background">#F8FAFC</color> <!-- Slate 50: Fondo muy suave -->
+    <color name="surface">#FFFFFF</color>
+    <color name="error">#EF4444</color>
 </resources>
